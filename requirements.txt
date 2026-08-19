@@ -3,3 +3,6 @@ ruff
 sqlalchemy
 psycopg[binary]
 python-dotenv
+fastapi
+uvicorn
+pydantic
