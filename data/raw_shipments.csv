@@ -1,0 +1,13 @@
+shipment_id,carrier,ship_date,status,origin,destination,freight_cost,Expected Delivery Date,Delivered Date
+SH00001,DHL,1/27/2024,Delayed,Pune,Bangalore,89.12,1/27/2024,1/27/2024
+SH00002,BLUEDART,6/15/2024,IN_TRANSIT,Hyderabad,Delhi,149.2,1/27/2024,1/27/2024
+SH00003,DHL,2/25/2024,In Transit,Delhi,Chennai,95.99,1/27/2024,1/27/2024
+SH00004,FEDEX,04-06-2024,in-transit,Mumbai,Pune,423.23,1/27/2024,1/27/2024
+SH00005,BLUEDART,3/15/2024,,Mumbai,Delhi,154.76,1/27/2024,1/27/2024
+SH00006,FEDEX,6/20/2024,pending,Chennai,Mumbai,341.62,1/27/2024,1/27/2024
+SH00007,DHL,06-12-2024,in_transit,Delhi,Pune,358.08,06-12-2024,06-12-2024
+SH00008,DHL,2/24/2024,DELAYED,Pune,Chennai,444.37,1/27/2024,1/27/2024
+SH00009,BLUEDART,03-04-2024,Delayed,Delhi,Mumbai,168.23,1/27/2024,1/27/2024
+SH00010,DHL,1/13/2024,DELIVERED,Chennai,Pune,332.35,1/27/2024,1/27/2024
+SH00011,FEDEX,5/21/2024,delivered,Hyderabad,Chennai,356.13,not-a-date,not-a-date
+SH00012,BLUEDART,02-10-2024,Pending,Pune,Delhi,444.13,1/27/2024,1/27/2024
