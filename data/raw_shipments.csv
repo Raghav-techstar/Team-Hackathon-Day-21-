@@ -1,5 +1,5 @@
 shipment_id,carrier,ship_date,status,origin,destination,freight_cost,Expected Delivery Date,Delivered Date
-SH00001,DHL,1/27/2024,Delayed,Pune,Bangalore,89.12,1/27/2024,1/27/2024
+SH00001,DHL,1/27/2024,Delivered,Pune,Bangalore,89.12,1/27/2024,1/30/2024
 SH00002,BLUEDART,6/15/2024,IN_TRANSIT,Hyderabad,Delhi,149.2,1/27/2024,1/27/2024
 SH00003,DHL,2/25/2024,In Transit,Delhi,Chennai,95.99,1/27/2024,1/27/2024
 SH00004,FEDEX,04-06-2024,in-transit,Mumbai,Pune,423.23,1/27/2024,1/27/2024

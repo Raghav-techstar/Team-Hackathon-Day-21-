@@ -1,4 +1,4 @@
 shipment_id,carrier,ship_date,status,origin,destination,freight_cost,Expected Delivery Date,Delivered Date,delay_days
-SH00001,DHL,27/01/2024,Delayed,Pune,Bangalore,89.12,27/01/2024,27/01/2024,0.0
-SH00007,DHL,12/06/2024,In Transit,Delhi,Pune,358.08,12/06/2024,12/06/2024,0.0
-SH00010,DHL,13/01/2024,Delivered,Chennai,Pune,332.35,27/01/2024,27/01/2024,0.0
+SH00001,DHL,27/01/2024,Delivered,Pune,Bangalore,89.12,27/01/2024,30/01/2024,3
+SH00007,DHL,12/06/2024,In Transit,Delhi,Pune,358.08,12/06/2024,12/06/2024,
+SH00010,DHL,13/01/2024,Delivered,Chennai,Pune,332.35,27/01/2024,27/01/2024,0

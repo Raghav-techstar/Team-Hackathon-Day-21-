@@ -1,10 +1,10 @@
-shipment_id,carrier,ship_date,status,origin,destination,freight_cost,Expected Delivery Date,Delivered Date,delay_days
-SH00002,BLUEDART,15/06/2024,In Transit,Hyderabad,Delhi,149.2,27/01/2024,27/01/2024,0.0
-SH00003,DHL,25/02/2024,In Transit,Delhi,Chennai,95.99,27/01/2024,27/01/2024,0.0
-SH00004,FEDEX,06/04/2024,In Transit,Mumbai,Pune,423.23,27/01/2024,27/01/2024,0.0
-SH00005,BLUEDART,15/03/2024,,Mumbai,Delhi,154.76,27/01/2024,27/01/2024,0.0
-SH00006,FEDEX,20/06/2024,Pending,Chennai,Mumbai,341.62,27/01/2024,27/01/2024,0.0
-SH00008,DHL,24/02/2024,Delayed,Pune,Chennai,444.37,27/01/2024,27/01/2024,0.0
-SH00009,BLUEDART,04/03/2024,Delayed,Delhi,Mumbai,168.23,27/01/2024,27/01/2024,0.0
-SH00011,FEDEX,21/05/2024,Delivered,Hyderabad,Chennai,356.13,,,
-SH00012,BLUEDART,10/02/2024,Pending,Pune,Delhi,444.13,27/01/2024,27/01/2024,0.0
+shipment_id,carrier,ship_date,status,origin,destination,freight_cost,Expected Delivery Date,Delivered Date,delay_days,reason
+SH00002,BLUEDART,15/06/2024,In Transit,Hyderabad,Delhi,149.2,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
+SH00003,DHL,25/02/2024,In Transit,Delhi,Chennai,95.99,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
+SH00004,FEDEX,06/04/2024,In Transit,Mumbai,Pune,423.23,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
+SH00005,BLUEDART,15/03/2024,Accepted,Mumbai,Delhi,154.76,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
+SH00006,FEDEX,20/06/2024,Pending,Chennai,Mumbai,341.62,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
+SH00008,DHL,24/02/2024,Delayed,Pune,Chennai,444.37,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
+SH00009,BLUEDART,04/03/2024,Delayed,Delhi,Mumbai,168.23,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
+SH00011,FEDEX,21/05/2024,Delivered,Hyderabad,Chennai,356.13,,,,Expected Delivery Date is missing or invalid; Delivered Date is missing or invalid for Delivered status
+SH00012,BLUEDART,10/02/2024,Pending,Pune,Delhi,444.13,27/01/2024,27/01/2024,,Expected Delivery Date is before Ship Date
