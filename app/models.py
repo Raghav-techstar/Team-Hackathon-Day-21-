@@ -9,16 +9,16 @@ class SummaryResponse(BaseModel):
 
 
 class ShipmentResponse(BaseModel):
-    shipment_id: str
-    carrier: str
-    ship_date: str
-    status: Optional[str]
-    origin: str
-    destination: str
-    freight_cost: Optional[float]
-    expected_delivery_date: Optional[str]
-    delivered_date: Optional[str]
-    delay_days: Optional[float]
+    shipment_id: str | None
+    carrier: str | None
+    ship_date: str | None
+    status: Optional[str] | None
+    origin: str | None
+    destination: str | None
+    freight_cost: Optional[float] | None
+    expected_delivery_date: Optional[str] | None
+    delivered_date: Optional[str] | None
+    delay_days: Optional[float] | None
 
 
 class DQCheck(BaseModel):
@@ -33,3 +33,10 @@ class DQReportResponse(BaseModel):
     duplicate_shipment_ids: int
     null_required_fields: int
     checks: list[DQCheck]
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+class ChatResponse(BaseModel):
+    answer: str

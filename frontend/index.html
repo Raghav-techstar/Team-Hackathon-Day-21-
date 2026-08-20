@@ -652,10 +652,97 @@
 
 <script src="app.js"></script>
 
+<!-- ============================================================
+     AI CHATBOT
+     ============================================================ -->
 
-    <!-- JAVASCRIPT -->
+<button
+    id="ai-chat-button"
+    class="ai-chat-button"
+    title="Open AI Assistant"
+>
+    <span class="ai-chat-icon">✦</span>
+</button>
 
-    <script src="app.js"></script>
+
+<div
+    id="ai-chat-window"
+    class="ai-chat-window"
+>
+
+    <!-- Header -->
+
+    <div class="ai-chat-header">
+
+        <div class="ai-chat-title">
+
+            <div class="ai-avatar">
+                ✦
+            </div>
+
+            <div>
+                <strong>Shipment AI</strong>
+                <span>Operations Assistant</span>
+            </div>
+
+        </div>
+
+        <button
+            id="ai-chat-close"
+            class="ai-chat-close"
+            title="Close"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <!-- Messages -->
+
+    <div
+        id="ai-chat-messages"
+        class="ai-chat-messages"
+    >
+
+        <div class="ai-message assistant">
+
+            <div class="message-avatar">
+                ✦
+            </div>
+
+            <div class="message-content">
+                Hello! I'm your Shipment Operations
+                Assistant. Ask me about shipments,
+                carriers, freight costs, delays,
+                routes, DQ checks, or the project.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Input -->
+
+    <div class="ai-chat-input-area">
+
+        <textarea
+            id="ai-chat-input"
+            placeholder="Ask about your shipments..."
+            rows="1"
+        ></textarea>
+
+        <button
+            id="ai-chat-send"
+            title="Send message"
+        >
+            ➤
+        </button>
+
+    </div>
+
+</div>
 
 </body>
 </html>

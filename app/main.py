@@ -1,3 +1,17 @@
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    Query,
+    Depends,
+)
+
+from app.auth import (
+    USERNAME,
+    PASSWORD,
+    get_current_user,
+)
+
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +33,16 @@ from app.models import (
 )
 
 
+from app.ai_service import ask_ai
+
+from app.models import (
+    SummaryResponse,
+    ShipmentResponse,
+    DQReportResponse,
+    ChatRequest,
+    ChatResponse,
+)
+
 app = FastAPI(
     title="Operational Status Dashboard",
     description=(
@@ -27,6 +51,9 @@ app = FastAPI(
     ),
     version="1.0.0",
 )
+
+
+
 
 
 # ============================================================
@@ -38,6 +65,37 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 
 
 # ============================================================
+# POST /token
+# ============================================================
+
+@app.post(
+    "/token",
+    tags=["Authentication"],
+)
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+):
+    """Return an OAuth2 bearer token."""
+
+    if (
+        form_data.username != USERNAME
+        or form_data.password != PASSWORD
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect username or password",
+            headers={
+                "WWW-Authenticate": "Bearer"
+            },
+        )
+
+    return {
+        "access_token": form_data.username,
+        "token_type": "bearer",
+    }
+
+
+# ============================================================
 # GET /status/summary
 # ============================================================
 
@@ -46,7 +104,7 @@ FRONTEND_DIR = BASE_DIR / "frontend"
     response_model=SummaryResponse,
     tags=["Status"],
 )
-def get_summary():
+def get_summary(current_user: str = Depends(get_current_user),):
     """Return top-level shipment KPIs."""
 
     try:
@@ -101,10 +159,13 @@ def get_summary():
     tags=["Status"],
 )
 def get_shipments(
+    current_user: str = Depends(get_current_user),
+
     carrier: str | None = Query(
         default=None,
         description="Filter by carrier",
     ),
+
     status: str | None = Query(
         default=None,
         description="Filter by shipment status",
@@ -183,22 +244,37 @@ def get_shipments(
 
         records.append(
             {
-                "shipment_id": str(
-                    record["shipment_id"]
+                "shipment_id": (
+                    None
+                    if pd.isna(record.get("shipment_id"))
+                    else str(record.get("shipment_id"))
                 ),
-                "carrier": str(
-                    record["carrier"]
+
+                "carrier": (
+                    None
+                    if pd.isna(record.get("carrier"))
+                    else str(record.get("carrier"))
                 ),
-                "ship_date": str(
-                    record["ship_date"]
+
+                "ship_date": (
+                    None
+                    if pd.isna(record.get("ship_date"))
+                    else str(record.get("ship_date"))
                 ),
+
                 "status": status_value,
-                "origin": str(
-                    record["origin"]
+                "origin": (
+                    None
+                    if pd.isna(record.get("origin"))
+                    else str(record.get("origin"))
                 ),
-                "destination": str(
-                    record["destination"]
+
+                "destination": (
+                    None
+                    if pd.isna(record.get("destination"))
+                    else str(record.get("destination"))
                 ),
+
                 "freight_cost": freight_cost,
                 "expected_delivery_date": expected_date,
                 "delivered_date": delivered_date,
@@ -218,7 +294,7 @@ def get_shipments(
     response_model=DQReportResponse,
     tags=["Data Quality"],
 )
-def get_dq_report():
+def get_dq_report(current_user: str = Depends(get_current_user),):
     """Return computed data-quality results."""
 
     try:
@@ -235,6 +311,104 @@ def get_dq_report():
         clean_df,
         rejected_df,
     )
+
+
+# ============================================================
+# POST /ai/chat
+# ============================================================
+
+@app.post(
+    "/ai/chat",
+    response_model=ChatResponse,
+    tags=["AI Assistant"],
+)
+def ai_chat(
+    request: ChatRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Answer questions about the shipment project."""
+
+    try:
+
+        clean_df = load_clean_shipments()
+        rejected_df = load_rejected_shipments()
+
+        dq_report = data_quality_report(
+            clean_df,
+            rejected_df,
+        )
+
+        context = f"""
+CURRENT SHIPMENT DATA
+---------------------
+
+Total shipments:
+{len(clean_df)}
+
+Shipment records:
+{clean_df.to_dict(orient="records")}
+
+
+REJECTED SHIPMENT DATA
+----------------------
+
+Rejected records:
+{len(rejected_df)}
+
+
+DATA QUALITY REPORT
+-------------------
+
+{dq_report}
+
+
+PROJECT APIs
+------------
+
+GET /status/summary
+Returns shipment KPIs.
+
+GET /status/shipments
+Returns shipment records and supports
+carrier and status filtering.
+
+GET /status/dq-report
+Returns the current data-quality result.
+
+POST /ai/chat
+Answers questions about this project
+and its current shipment data.
+
+
+AUTHENTICATION
+--------------
+
+The APIs use OAuth2 Bearer authentication.
+
+
+BACKGROUND REFRESH
+-------------------
+
+The frontend refreshes dashboard data
+every 15 seconds without reloading
+the page.
+"""
+
+        answer = ask_ai(
+            request.message,
+            context,
+        )
+
+        return {
+            "answer": answer
+        }
+
+    except Exception as error:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error),
+        )
 
 
 # ============================================================

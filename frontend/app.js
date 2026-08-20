@@ -8,6 +8,23 @@ let dqData = null;
 
 const API_BASE = "";
 
+// OAuth2 token
+const AUTH_TOKEN = "admin";
+async function authenticatedFetch(
+    url,
+    options = {}
+) {
+
+    const headers = {
+        ...(options.headers || {}),
+        "Authorization": `Bearer ${AUTH_TOKEN}`,
+    };
+
+    return fetch(url, {
+        ...options,
+        headers,
+    });
+}
 
 // ============================================================
 // INITIALIZE
@@ -24,6 +41,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setupKPICards();
 
     loadDashboard();
+
+    startBackgroundRefresh();
+
+    setupAIChat();
 
 });
 
@@ -42,15 +63,20 @@ async function loadDashboard() {
             summaryResponse,
             shipmentsResponse,
             dqResponse
-        ] = await Promise.all([
+       ] = await Promise.all([
 
-            fetch(`${API_BASE}/status/summary`),
+    authenticatedFetch(
+        `${API_BASE}/status/summary`
+    ),
 
-            fetch(`${API_BASE}/status/shipments`),
+    authenticatedFetch(
+        `${API_BASE}/status/shipments`
+    ),
 
-            fetch(`${API_BASE}/status/dq-report`)
-
-        ]);
+    authenticatedFetch(
+        `${API_BASE}/status/dq-report`
+    )
+]);
 
 
         if (!summaryResponse.ok) {
@@ -101,6 +127,107 @@ async function loadDashboard() {
 
     }
 
+}
+
+// ============================================================
+// BACKGROUND REFRESH
+// ============================================================
+
+function startBackgroundRefresh() {
+
+    const REFRESH_INTERVAL = 15000; // 15 seconds
+
+    setInterval(async () => {
+
+        try {
+
+            await refreshDashboardSilently();
+
+        } catch (error) {
+
+            console.error(
+                "Background refresh failed:",
+                error
+            );
+
+        }
+
+    }, REFRESH_INTERVAL);
+}
+
+async function refreshDashboardSilently() {
+
+    try {
+
+        const [
+            summaryResponse,
+            shipmentsResponse,
+            dqResponse
+        ] = await Promise.all([
+
+    authenticatedFetch(
+        `${API_BASE}/status/summary`
+    ),
+
+    authenticatedFetch(
+        `${API_BASE}/status/shipments`
+    ),
+
+    authenticatedFetch(
+        `${API_BASE}/status/dq-report`
+    )
+]);
+
+
+        if (
+            !summaryResponse.ok ||
+            !shipmentsResponse.ok ||
+            !dqResponse.ok
+        ) {
+            throw new Error(
+                "One or more background API requests failed."
+            );
+        }
+
+
+        const newSummaryData =
+            await summaryResponse.json();
+
+        const newShipments =
+            await shipmentsResponse.json();
+
+        const newDQData =
+            await dqResponse.json();
+
+
+        // Update application state
+
+        summaryData =
+            newSummaryData;
+
+        shipments =
+            newShipments;
+
+        dqData =
+            newDQData;
+
+
+        // Update dashboard without
+        // showing the loading screen
+
+        renderDashboard();
+
+        updateLastUpdated();
+
+
+    } catch (error) {
+
+        console.error(
+            "Silent dashboard refresh failed:",
+            error
+        );
+
+    }
 }
 
 
@@ -847,12 +974,24 @@ function updateShipmentTable(
             tbody.innerHTML += `
                 <tr
                     class="shipment-row"
-                    data-shipment-id="${shipment.shipment_id}"
+                    data-shipment-id="${
+                    shipment.shipment_id === null ||
+                    shipment.shipment_id === undefined ||
+                    String(shipment.shipment_id).toLowerCase() === "nan"
+                        ? ""
+                        : shipment.shipment_id
+                    }"
                 >
 
                     <td>
                         <span class="shipment-id">
-                            ${shipment.shipment_id}
+                            ${
+                                shipment.shipment_id === null ||
+                                shipment.shipment_id === undefined ||
+                                String(shipment.shipment_id).toLowerCase() === "nan"
+                                    ? "—"
+                                    : shipment.shipment_id
+                        }
                         </span>
                     </td>
 
@@ -1405,6 +1544,9 @@ function setupRefresh() {
 
 function updateSystemStatus() {
 
+    const systemCard =
+        document.querySelector(".system-status");
+
     const systemStatus =
         document.querySelector(
             ".system-status strong"
@@ -1416,53 +1558,45 @@ function updateSystemStatus() {
             ".system-status small"
         );
 
-
-    if (
-        !dqData
-    ) {
-
+    if (!systemCard || !systemStatus || !systemDescription) {
         return;
+        }
 
+    if (!dqData) {
+        return;
     }
-
-
-    /*
-     * Your DQ API may use a different
-     * status field. We keep the dashboard
-     * safe if it does.
-     */
 
     const rawStatus =
         String(
-            dqData.overall_status
-            ||
-            dqData.status
-            ||
+            dqData.overall_status ||
+            dqData.status ||
             "PASS"
         ).toUpperCase();
 
 
-    if (
-        rawStatus === "PASS"
-    ) {
-
-        systemStatus.textContent =
-            "System Online";
-
-
-        systemDescription.textContent =
-            "API Connected";
-
-    } else {
-
-        systemStatus.textContent =
-            "DQ Attention";
+    // Remove previous DQ classes
+    systemCard.classList.remove(
+        "dq-pass",
+        "dq-fail"
+    );
 
 
-        systemDescription.textContent =
-            "Check data quality";
+if (rawStatus === "PASS") {
 
-    }
+    systemCard.classList.remove("dq-fail");
+    systemCard.classList.add("dq-pass");
+
+    systemStatus.textContent = "System Online";
+    systemDescription.textContent = "Data quality passed";
+
+} else {
+
+    systemCard.classList.remove("dq-pass");
+    systemCard.classList.add("dq-fail");
+
+    systemStatus.textContent = "DQ Attention";
+    systemDescription.textContent = "Check data quality";
+}
 
 }
 
@@ -1593,4 +1727,336 @@ function normalizeStatus(
         .trim()
         .toLowerCase();
 
+}
+
+// ============================================================
+// AI CHATBOT
+// ============================================================
+
+function setupAIChat() {
+
+    const chatButton =
+        document.getElementById(
+            "ai-chat-button"
+        );
+
+    const chatWindow =
+        document.getElementById(
+            "ai-chat-window"
+        );
+
+    const closeButton =
+        document.getElementById(
+            "ai-chat-close"
+        );
+
+    const sendButton =
+        document.getElementById(
+            "ai-chat-send"
+        );
+
+    const input =
+        document.getElementById(
+            "ai-chat-input"
+        );
+
+    if (
+        !chatButton ||
+        !chatWindow ||
+        !closeButton ||
+        !sendButton ||
+        !input
+    ) {
+        return;
+    }
+
+
+    // --------------------------------------------------------
+    // OPEN CHAT
+    // --------------------------------------------------------
+
+    chatButton.addEventListener(
+    "click",
+    () => {
+
+        if (chatWindow.classList.contains("open")) {
+
+            // Close chatbot
+            chatWindow.classList.remove("open");
+
+        } else {
+
+            // Open chatbot
+            chatWindow.classList.add("open");
+            input.focus();
+
+        }
+
+    }
+);
+
+
+    // --------------------------------------------------------
+    // CLOSE CHAT
+    // --------------------------------------------------------
+
+    closeButton.addEventListener(
+        "click",
+        () => {
+
+            chatWindow.classList.remove(
+                "open"
+            );
+        }
+    );
+
+
+    // --------------------------------------------------------
+    // SEND BUTTON
+    // --------------------------------------------------------
+
+    sendButton.addEventListener(
+        "click",
+        sendAIMessage
+    );
+
+
+    // --------------------------------------------------------
+    // ENTER KEY
+    // --------------------------------------------------------
+
+    input.addEventListener(
+        "keydown",
+        (event) => {
+
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
+
+                event.preventDefault();
+
+                sendAIMessage();
+            }
+        }
+    );
+
+
+    // --------------------------------------------------------
+    // SEND MESSAGE
+    // --------------------------------------------------------
+
+    async function sendAIMessage() {
+
+        const message =
+            input.value.trim();
+
+
+        if (!message) {
+            return;
+        }
+
+
+        // Show user message
+
+        addAIMessage(
+            message,
+            "user"
+        );
+
+
+        input.value = "";
+
+        sendButton.disabled = true;
+
+
+        // Show typing indicator
+
+        const typingElement =
+            showAITyping();
+
+
+        try {
+
+            const response =
+                await authenticatedFetch(
+                    `${API_BASE}/ai/chat`,
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body: JSON.stringify({
+                            message: message,
+                        }),
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                const errorText =
+                    await response.text();
+
+                throw new Error(
+                    `AI request failed: ${response.status} ${errorText}`
+                );
+            }
+
+
+            const data =
+                await response.json();
+
+
+            typingElement.remove();
+
+
+            addAIMessage(
+                data.answer,
+                "assistant"
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "AI chatbot error:",
+                error
+            );
+
+
+            typingElement.remove();
+
+
+            addAIMessage(
+                "Sorry, I couldn't process that request. Please try again.",
+                "assistant"
+            );
+
+        } finally {
+
+            sendButton.disabled = false;
+
+            input.focus();
+        }
+    }
+}
+function addAIMessage(
+    message,
+    type
+) {
+
+    const messages =
+        document.getElementById(
+            "ai-chat-messages"
+        );
+
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        `ai-message ${type}`;
+
+
+    const avatar =
+        document.createElement("div");
+
+    avatar.className =
+        "message-avatar";
+
+    avatar.textContent =
+        type === "user"
+            ? "You"
+            : "✦";
+
+
+    const content =
+        document.createElement("div");
+
+    content.className =
+        "message-content";
+
+    content.textContent =
+        message;
+
+
+    wrapper.appendChild(
+        avatar
+    );
+
+    wrapper.appendChild(
+        content
+    );
+
+
+    messages.appendChild(
+        wrapper
+    );
+
+
+    messages.scrollTop =
+        messages.scrollHeight;
+}
+function showAITyping() {
+
+    const messages =
+        document.getElementById(
+            "ai-chat-messages"
+        );
+
+
+    const wrapper =
+        document.createElement("div");
+
+    wrapper.className =
+        "ai-message assistant";
+
+
+    const avatar =
+        document.createElement("div");
+
+    avatar.className =
+        "message-avatar";
+
+    avatar.textContent =
+        "✦";
+
+
+    const typing =
+        document.createElement("div");
+
+    typing.className =
+        "message-content ai-typing";
+
+
+    typing.innerHTML = `
+        <span></span>
+        <span></span>
+        <span></span>
+    `;
+
+
+    wrapper.appendChild(
+        avatar
+    );
+
+    wrapper.appendChild(
+        typing
+    );
+
+
+    messages.appendChild(
+        wrapper
+    );
+
+
+    messages.scrollTop =
+        messages.scrollHeight;
+
+
+    return wrapper;
 }
