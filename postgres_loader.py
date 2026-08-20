@@ -234,59 +234,89 @@ if missing_rejected_columns:
 Rejected_Shipments = Rejected_Shipments[required_rejected_columns].copy()
 
 
-# Keep rejected data as VARCHAR-compatible strings
+# Keep rejected data as VARCHAR-compatible strings.
 
 Rejected_Shipments = Rejected_Shipments.astype(str)
 
 
 # ============================================================
-# 13. REMOVE DUPLICATES WITHIN CSV FILES
+# 13. VALIDATE SHIPMENT IDs
 # ============================================================
 
-# If the same shipment_id appears multiple times
-# in the same CSV, keep only the first occurrence.
+# The cleaning script is responsible for rejecting:
+#
+# 1. Missing shipment IDs
+# 2. Duplicate shipment IDs
+#
+# Therefore the loader should never silently remove
+# duplicate records.
+#
+# Instead, fail if duplicates somehow reach the loader.
+# This protects the database from unexpected bad input.
 
-clean_duplicate_count = Clean_Shipments["shipment_id"].duplicated().sum()
+clean_duplicate_ids = (
+    Clean_Shipments[Clean_Shipments["shipment_id"].duplicated(keep=False)][
+        "shipment_id"
+    ]
+    .dropna()
+    .unique()
+)
 
-rejected_duplicate_count = Rejected_Shipments["shipment_id"].duplicated().sum()
+rejected_duplicate_ids = Rejected_Shipments[
+    Rejected_Shipments["shipment_id"].duplicated(keep=False)
+]["shipment_id"].unique()
 
-if clean_duplicate_count > 0:
-    print(f"Duplicate clean shipment IDs found in CSV: {clean_duplicate_count}")
-
-    Clean_Shipments = Clean_Shipments.drop_duplicates(
-        subset=["shipment_id"],
-        keep="first",
+if len(clean_duplicate_ids) > 0:
+    raise ValueError(
+        "Duplicate shipment IDs found in Clean_Shipments.csv: "
+        + ", ".join(map(str, clean_duplicate_ids))
+        + ". Run shipment_cleaning.py again."
     )
 
 
-if rejected_duplicate_count > 0:
-    print(f"Duplicate rejected shipment IDs found in CSV: {rejected_duplicate_count}")
-
-    Rejected_Shipments = Rejected_Shipments.drop_duplicates(
-        subset=["shipment_id"],
-        keep="first",
+if len(rejected_duplicate_ids) > 0:
+    raise ValueError(
+        "Duplicate shipment IDs found in Rejected_Shipments.csv: "
+        + ", ".join(map(str, rejected_duplicate_ids))
+        + ". Run shipment_cleaning.py again."
     )
 
 
 # ============================================================
-# 14. CHECK FOR IDs APPEARING IN BOTH CSV FILES
+# 14. CHECK FOR MISSING CLEAN SHIPMENT IDs
 # ============================================================
 
-clean_ids = set(Clean_Shipments["shipment_id"].dropna().astype(str))
+missing_clean_ids = Clean_Shipments["shipment_id"].isna() | (
+    Clean_Shipments["shipment_id"].astype("string").str.strip() == ""
+)
 
-rejected_ids = set(Rejected_Shipments["shipment_id"].dropna().astype(str))
+if missing_clean_ids.any():
+    raise ValueError(
+        "Clean_Shipments.csv contains missing shipment IDs. "
+        "These records should have been rejected by "
+        "shipment_cleaning.py."
+    )
+
+
+# ============================================================
+# 15. CHECK FOR IDS APPEARING IN BOTH CSV FILES
+# ============================================================
+
+clean_ids = set(Clean_Shipments["shipment_id"].astype(str).str.strip())
+
+rejected_ids = set(Rejected_Shipments["shipment_id"].astype(str).str.strip())
 
 overlapping_ids = clean_ids.intersection(rejected_ids)
 
 if overlapping_ids:
     raise ValueError(
-        "The same shipment_id appears in both clean and rejected "
-        f"CSV files: {sorted(overlapping_ids)}"
+        "The same shipment_id appears in both "
+        "clean and rejected CSV files: " + ", ".join(sorted(overlapping_ids))
     )
 
 
 # ============================================================
-# 15. LOAD TABLE METADATA
+# 16. LOAD TABLE METADATA
 # ============================================================
 
 metadata = MetaData()
@@ -305,21 +335,23 @@ rejected_shipments_table = Table(
 
 
 # ============================================================
-# 16. START DATABASE TRANSACTION
+# 17. START DATABASE TRANSACTION
 # ============================================================
 
 try:
     with engine.begin() as connection:
         # ====================================================
-        # 16A. GET SHIPMENT IDS FROM CURRENT CSV
+        # 17A. GET CURRENT CSV SHIPMENT IDS
         # ====================================================
 
-        clean_ids = Clean_Shipments["shipment_id"].tolist()
+        clean_ids = Clean_Shipments["shipment_id"].astype(str).str.strip().tolist()
 
-        rejected_ids = Rejected_Shipments["shipment_id"].tolist()
+        rejected_ids = (
+            Rejected_Shipments["shipment_id"].astype(str).str.strip().tolist()
+        )
 
         # ====================================================
-        # 16B. MOVE CLEAN RECORDS OUT OF REJECTED TABLE
+        # 17B. MOVE CLEAN RECORDS OUT OF REJECTED TABLE
         # ====================================================
 
         clean_moved_from_rejected = 0
@@ -340,13 +372,12 @@ try:
         )
 
         # ====================================================
-        # 16C. UPSERT CLEAN SHIPMENTS
+        # 17C. UPSERT CLEAN SHIPMENTS
         # ====================================================
 
         clean_records = Clean_Shipments.to_dict(orient="records")
 
-        clean_inserted = 0
-        clean_updated = 0
+        clean_synchronized = 0
 
         if clean_records:
             clean_statement = insert(shipments_table).values(clean_records)
@@ -365,28 +396,21 @@ try:
                     ],
                     "Delivered Date": clean_statement.excluded["Delivered Date"],
                     "delay_days": clean_statement.excluded.delay_days,
-                    "updated_at": clean_statement.excluded.updated_at,
                 },
             ).returning(shipments_table.c.shipment_id)
 
             result = connection.execute(clean_statement)
 
-            inserted_or_updated_ids = result.fetchall()
-
-            # PostgreSQL returns one row for both
-            # INSERT and UPDATE, so this count represents
-            # records successfully synchronized.
-
-            clean_inserted = len(inserted_or_updated_ids)
-
-            clean_updated = clean_inserted
+            clean_synchronized = len(result.fetchall())
 
         print(
-            f"Successfully synchronized {clean_inserted} clean records into shipments."
+            f"Successfully synchronized "
+            f"{clean_synchronized} clean records "
+            f"into shipments."
         )
 
         # ====================================================
-        # 16D. MOVE REJECTED RECORDS OUT OF CLEAN TABLE
+        # 17D. MOVE REJECTED RECORDS OUT OF CLEAN TABLE
         # ====================================================
 
         rejected_moved_from_clean = 0
@@ -407,7 +431,7 @@ try:
         )
 
         # ====================================================
-        # 16E. UPSERT REJECTED SHIPMENTS
+        # 17E. UPSERT REJECTED SHIPMENTS
         # ====================================================
 
         rejected_records = Rejected_Shipments.to_dict(orient="records")
@@ -439,9 +463,7 @@ try:
 
             result = connection.execute(rejected_statement)
 
-            rejected_inserted_or_updated = result.fetchall()
-
-            rejected_synchronized = len(rejected_inserted_or_updated)
+            rejected_synchronized = len(result.fetchall())
 
         print(
             f"Successfully synchronized "
@@ -450,20 +472,23 @@ try:
         )
 
     # ========================================================
-    # 17. TRANSACTION SUCCESSFUL
+    # 18. TRANSACTION SUCCESSFUL
     # ========================================================
 
     print("\n========== DATABASE LOAD COMPLETE ==========")
+
     print("Transaction committed successfully.")
 
 
 except Exception as error:
     # ========================================================
-    # 18. TRANSACTION FAILED
+    # 19. TRANSACTION FAILED
     # ========================================================
 
     print("\n========== DATABASE LOAD FAILED ==========")
+
     print(f"Error: {error}")
+
     print("Transaction rolled back.")
 
     raise
@@ -471,7 +496,7 @@ except Exception as error:
 
 finally:
     # ========================================================
-    # 19. CLOSE DATABASE CONNECTION
+    # 20. CLOSE DATABASE CONNECTION
     # ========================================================
 
     engine.dispose()

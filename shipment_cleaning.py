@@ -45,7 +45,11 @@ if missing_columns:
 
 reject_mask = pd.Series(False, index=df.index)
 
-rejection_reasons = pd.Series("", index=df.index, dtype="string")
+rejection_reasons = pd.Series(
+    "",
+    index=df.index,
+    dtype="string",
+)
 
 
 def add_rejection_reason(mask, reason):
@@ -69,10 +73,69 @@ def add_rejection_reason(mask, reason):
 
 
 # ============================================================
-# 4. CARRIER TRANSFORMATION & VALIDATION
+# 4. SHIPMENT ID VALIDATION
 # ============================================================
 
+# Remove leading/trailing spaces from shipment IDs.
+
+df["shipment_id"] = df["shipment_id"].astype("string").str.strip()
+
+
+# ------------------------------------------------------------
+# 4A. MISSING / BLANK SHIPMENT ID
+# ------------------------------------------------------------
+
+# Shipment ID is mandatory.
+#
+# Both NULL and empty shipment IDs are rejected.
+
+missing_shipment_id = df["shipment_id"].isna() | (df["shipment_id"] == "")
+
+add_rejection_reason(
+    missing_shipment_id,
+    "Missing shipment ID",
+)
+
+
+# ------------------------------------------------------------
+# 4B. DUPLICATE SHIPMENT ID
+# ------------------------------------------------------------
+
+# keep=False means ALL occurrences of a duplicate
+# shipment ID are marked as duplicates.
+#
+# Example:
+#
+# SH00001
+# SH00001
+# SH00001
+#
+# ALL THREE records are rejected.
+#
+# Missing IDs are excluded because they already have
+# the "Missing shipment ID" rejection reason.
+
+duplicate_shipment_id = (
+    df["shipment_id"].notna()
+    & (df["shipment_id"] != "")
+    & df["shipment_id"].duplicated(keep=False)
+)
+
+add_rejection_reason(
+    duplicate_shipment_id,
+    "Duplicate shipment ID",
+)
+
+
+# ============================================================
+# 5. CARRIER TRANSFORMATION & VALIDATION
+# ============================================================
+
+# Remove leading/trailing spaces
+# Convert carrier names to uppercase
+
 df["carrier"] = df["carrier"].astype("string").str.strip().str.upper()
+
 
 valid_carriers = [
     "DHL",
@@ -80,13 +143,17 @@ valid_carriers = [
     "FEDEX",
 ]
 
+
 invalid_carrier = ~df["carrier"].isin(valid_carriers)
 
-add_rejection_reason(invalid_carrier, "Invalid carrier")
+add_rejection_reason(
+    invalid_carrier,
+    "Invalid carrier",
+)
 
 
 # ============================================================
-# 5. SHIP DATE TRANSFORMATION & VALIDATION
+# 6. SHIP DATE TRANSFORMATION & VALIDATION
 # ============================================================
 
 df["ship_date"] = (
@@ -94,13 +161,13 @@ df["ship_date"] = (
 )
 
 
-# The raw file contains both:
+# The source file may contain different date separators:
 #
 # 1/27/2024
 # 04-06-2024
 # 06-12-2024
 #
-# Therefore format="mixed" is used.
+# format="mixed" allows these different formats.
 #
 # dayfirst=False means:
 #
@@ -114,20 +181,24 @@ ship_date_datetime = pd.to_datetime(
     errors="coerce",
 )
 
+
 invalid_ship_date = ship_date_datetime.isna()
 
-add_rejection_reason(invalid_ship_date, "Invalid ship date")
+add_rejection_reason(
+    invalid_ship_date,
+    "Invalid ship date",
+)
 
 
 # ============================================================
-# 6. STATUS TRANSFORMATION
+# 7. STATUS TRANSFORMATION
 # ============================================================
 
 df["status"] = df["status"].astype("string").str.strip().str.upper()
 
 
 # ============================================================
-# 7. BLANK STATUS -> ACCEPTED
+# 8. BLANK STATUS -> ACCEPTED
 # ============================================================
 
 blank_status = df["status"].isna() | (df["status"].str.strip() == "")
@@ -136,7 +207,7 @@ df.loc[blank_status, "status"] = "Accepted"
 
 
 # ============================================================
-# 8. STANDARDIZE STATUS VALUES
+# 9. STANDARDIZE STATUS VALUES
 # ============================================================
 
 status_mapping = {
@@ -157,11 +228,12 @@ status_mapping = {
     "ACCEPTED": "Accepted",
 }
 
+
 df["status"] = df["status"].replace(status_mapping)
 
 
 # ============================================================
-# 9. STATUS VALIDATION
+# 10. STATUS VALIDATION
 # ============================================================
 
 valid_statuses = [
@@ -172,13 +244,17 @@ valid_statuses = [
     "Accepted",
 ]
 
+
 invalid_status = ~df["status"].isin(valid_statuses)
 
-add_rejection_reason(invalid_status, "Invalid status")
+add_rejection_reason(
+    invalid_status,
+    "Invalid status",
+)
 
 
 # ============================================================
-# 10. EXPECTED DELIVERY DATE TRANSFORMATION
+# 11. EXPECTED DELIVERY DATE TRANSFORMATION
 # ============================================================
 
 df["Expected Delivery Date"] = (
@@ -200,17 +276,16 @@ expected_delivery_date = pd.to_datetime(
 invalid_expected_delivery_date = expected_delivery_date.isna()
 
 add_rejection_reason(
-    invalid_expected_delivery_date, "Expected Delivery Date is missing or invalid"
+    invalid_expected_delivery_date,
+    "Expected Delivery Date is missing or invalid",
 )
 
 
 # ============================================================
-# 11. DELIVERED DATE TRANSFORMATION
+# 12. DELIVERED DATE TRANSFORMATION
 # ============================================================
 
-# IMPORTANT:
-#
-# Your actual CSV column is:
+# The actual source column is:
 #
 # Delivered Date
 #
@@ -232,7 +307,7 @@ delivered_date = pd.to_datetime(
 
 
 # ============================================================
-# 12. DELIVERED DATE VALIDATION
+# 13. DELIVERED DATE VALIDATION
 # ============================================================
 
 # Delivered Date is required ONLY when
@@ -244,12 +319,13 @@ delivered_status_mask = df["status"] == "Delivered"
 invalid_delivered_date = delivered_status_mask & delivered_date.isna()
 
 add_rejection_reason(
-    invalid_delivered_date, "Delivered Date is missing or invalid for Delivered status"
+    invalid_delivered_date,
+    "Delivered Date is missing or invalid for Delivered status",
 )
 
 
 # ============================================================
-# 13. DATE ORDER VALIDATION
+# 14. DATE ORDER VALIDATION
 # ============================================================
 
 # Expected Delivery Date cannot be before Ship Date.
@@ -257,13 +333,16 @@ add_rejection_reason(
 invalid_expected_date_order = expected_delivery_date < ship_date_datetime
 
 add_rejection_reason(
-    invalid_expected_date_order, "Expected Delivery Date is before Ship Date"
+    invalid_expected_date_order,
+    "Expected Delivery Date is before Ship Date",
 )
 
 
+# ------------------------------------------------------------
 # Delivered Date cannot be before Ship Date.
 #
 # This validation applies only to Delivered shipments.
+# ------------------------------------------------------------
 
 invalid_delivered_date_order = (
     delivered_status_mask
@@ -271,11 +350,14 @@ invalid_delivered_date_order = (
     & (delivered_date < ship_date_datetime)
 )
 
-add_rejection_reason(invalid_delivered_date_order, "Delivered Date is before Ship Date")
+add_rejection_reason(
+    invalid_delivered_date_order,
+    "Delivered Date is before Ship Date",
+)
 
 
 # ============================================================
-# 14. FREIGHT COST VALIDATION
+# 15. FREIGHT COST VALIDATION
 # ============================================================
 
 freight_cost_numeric = pd.to_numeric(
@@ -284,9 +366,20 @@ freight_cost_numeric = pd.to_numeric(
 )
 
 
+# Reject:
+#
+# - NULL
+# - blank
+# - non-numeric
+# - zero
+# - negative values
+
 invalid_freight_cost = freight_cost_numeric.isna() | (freight_cost_numeric <= 0)
 
-add_rejection_reason(invalid_freight_cost, "Invalid freight cost")
+add_rejection_reason(
+    invalid_freight_cost,
+    "Invalid freight cost",
+)
 
 
 # Keep validated numeric freight cost
@@ -295,18 +388,22 @@ df["freight_cost"] = freight_cost_numeric
 
 
 # ============================================================
-# 15. CALCULATE DELAY DAYS
+# 16. CALCULATE DELAY DAYS
 # ============================================================
 
-# Delay days are calculated ONLY when status is Delivered.
+# delay_days is calculated ONLY for Delivered shipments.
 #
-# Delivered:
-#     delay_days = Delivered Date - Expected Delivery Date
+# Formula:
+#
+# Delivered Date - Expected Delivery Date
 #
 # Delivered late:
 #     positive number
 #
-# Delivered on time / early:
+# Delivered on time:
+#     0
+#
+# Delivered early:
 #     0
 #
 # All other statuses:
@@ -315,7 +412,7 @@ df["freight_cost"] = freight_cost_numeric
 delay_difference = (delivered_date - expected_delivery_date).dt.days
 
 
-# Default delay_days to NULL for all records
+# Default delay_days to NULL for every record
 
 df["delay_days"] = pd.NA
 
@@ -331,8 +428,9 @@ df.loc[delivered_status_mask, "delay_days"] = delay_difference[
 
 df["delay_days"] = df["delay_days"].astype("Int64")
 
+
 # ============================================================
-# 16. CREATE REJECTED SHIPMENTS DATASET
+# 17. CREATE REJECTED SHIPMENTS DATASET
 # ============================================================
 
 Rejected_Shipments = df[reject_mask].copy()
@@ -344,14 +442,14 @@ Rejected_Shipments["reason"] = rejection_reasons[reject_mask].str.strip()
 
 
 # ============================================================
-# 17. CREATE CLEAN SHIPMENTS DATASET
+# 18. CREATE CLEAN SHIPMENTS DATASET
 # ============================================================
 
 Clean_Shipments = df[~reject_mask].copy()
 
 
 # ============================================================
-# 18. FORMAT DATES FOR OUTPUT
+# 19. FORMAT DATES FOR OUTPUT
 # ============================================================
 
 # ------------------------------------------------------------
@@ -405,7 +503,7 @@ Rejected_Shipments["Delivered Date"] = delivered_date[reject_mask].dt.strftime(
 
 
 # ============================================================
-# 19. DISPLAY CLEAN SHIPMENTS
+# 20. DISPLAY CLEAN SHIPMENTS
 # ============================================================
 
 print("\n========== CLEAN SHIPMENTS ==========")
@@ -414,7 +512,7 @@ print(Clean_Shipments.to_string(index=False))
 
 
 # ============================================================
-# 20. DISPLAY REJECTED SHIPMENTS
+# 21. DISPLAY REJECTED SHIPMENTS
 # ============================================================
 
 print("\n========== REJECTED SHIPMENTS ==========")
@@ -423,7 +521,7 @@ print(Rejected_Shipments.to_string(index=False))
 
 
 # ============================================================
-# 21. TRANSFORMATION SUMMARY
+# 22. TRANSFORMATION SUMMARY
 # ============================================================
 
 print("\n========== TRANSFORMATION SUMMARY ==========")
@@ -436,16 +534,36 @@ print(f"Rejected records : {len(Rejected_Shipments)}")
 
 
 # ============================================================
-# 22. FINAL STATUS SUMMARY
+# 23. SHIPMENT ID SUMMARY
+# ============================================================
+
+missing_id_count = missing_shipment_id.sum()
+
+duplicate_id_count = duplicate_shipment_id.sum()
+
+print("\n========== SHIPMENT ID VALIDATION ==========")
+
+print(f"Missing shipment IDs   : {missing_id_count}")
+
+print(f"Duplicate shipment IDs : {duplicate_id_count}")
+
+print("All occurrences of duplicate shipment IDs are rejected.")
+
+
+# ============================================================
+# 24. FINAL STATUS SUMMARY
 # ============================================================
 
 print("\n========== FINAL STATUS VALUES ==========")
 
-print(Clean_Shipments["status"].value_counts())
+if len(Clean_Shipments) > 0:
+    print(Clean_Shipments["status"].value_counts())
+else:
+    print("No clean records.")
 
 
 # ============================================================
-# 23. REJECTION REASON SUMMARY
+# 25. REJECTION REASON SUMMARY
 # ============================================================
 
 print("\n========== REJECTION REASONS ==========")
@@ -457,28 +575,28 @@ else:
 
 
 # ============================================================
-# 24. CREATE OUTPUT DIRECTORY
+# 26. CREATE OUTPUT DIRECTORY
 # ============================================================
 
 os.makedirs("output", exist_ok=True)
 
 
 # ============================================================
-# 25. SAVE CLEAN DATASET
+# 27. SAVE CLEAN DATASET
 # ============================================================
 
 Clean_Shipments.to_csv("output/Clean_Shipments.csv", index=False)
 
 
 # ============================================================
-# 26. SAVE REJECTED DATASET
+# 28. SAVE REJECTED DATASET
 # ============================================================
 
 Rejected_Shipments.to_csv("output/Rejected_Shipments.csv", index=False)
 
 
 # ============================================================
-# 27. PRINT OUTPUT FILES
+# 29. PRINT OUTPUT FILES
 # ============================================================
 
 print("\nFiles created successfully:")
