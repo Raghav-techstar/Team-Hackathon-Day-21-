@@ -46,6 +46,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setupAIChat();
 
+    setupNavigation();
+
 });
 
 
@@ -897,6 +899,75 @@ function updateFreightAnalysis() {
         });
 
 }
+
+// ============================================================
+// SIDEBAR NAVIGATION
+// ============================================================
+
+function setupNavigation() {
+
+    const navItems =
+        document.querySelectorAll(".nav-item");
+
+    function updateActiveNav() {
+
+        let currentHash =
+            window.location.hash;
+
+        // Dashboard is the default page
+        if (
+            !currentHash ||
+            currentHash === "#"
+        ) {
+            currentHash = "#dashboard";
+        }
+
+        navItems.forEach(item => {
+
+            const href =
+                item.getAttribute("href");
+
+            item.classList.toggle(
+                "active",
+                href === currentHash ||
+                (
+                    currentHash === "#dashboard" &&
+                    href === "#"
+                )
+            );
+
+        });
+    }
+
+    // Update when a navigation item is clicked
+    navItems.forEach(item => {
+
+        item.addEventListener(
+            "click",
+            () => {
+
+                // Small delay allows the URL hash
+                // to update first.
+                setTimeout(
+                    updateActiveNav,
+                    0
+                );
+
+            }
+        );
+
+    });
+
+    // Also update if hash changes
+    window.addEventListener(
+        "hashchange",
+        updateActiveNav
+    );
+
+    // Set correct item when page loads
+    updateActiveNav();
+}
+
 
 // ============================================================
 // SHIPMENT TABLE
