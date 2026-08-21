@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Shipment Operations Control Tower</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-icon">
+                🚚
+            </div>
+
+            <div>
+                <h2>ShipTrack</h2>
+                <span>Operations</span>
+            </div>
+        </div>
+
+        <nav class="navigation">
+
+            <a href="#" class="nav-item active">
+                <span>▦</span>
+                Dashboard
+            </a>
+
+            <a href="#shipments" class="nav-item">
+                <span>▤</span>
+                Shipments
+            </a>
+
+            <a href="#analytics" class="nav-item">
+                <span>◫</span>
+                Analytics
+            </a>
+
+            <a href="#exceptions" class="nav-item">
+                <span>⚠</span>
+                Exceptions
+            </a>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="system-status">
+                <span class="status-dot"></span>
+
+                <div>
+                    <strong>System Online</strong>
+                    <small>API Connected</small>
+                </div>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
+    <main class="main-content">
+
+        <!-- HEADER -->
+
+        <header class="topbar">
+
+            <div>
+                <p class="eyebrow">
+                    OPERATIONS CENTER
+                </p>
+
+                <h1>
+                    Shipment Operations Control Tower
+                </h1>
+
+                <p class="subtitle">
+                    Real-time visibility into shipment performance
+                    and operational exceptions.
+                </p>
+            </div>
+
+            <div class="topbar-actions">
+
+                <div class="last-updated">
+                    <span class="live-dot"></span>
+
+                    <div>
+                        <small>LIVE DATA</small>
+                        <strong id="lastUpdated">
+                            Loading...
+                        </strong>
+                    </div>
+                </div>
+
+                <button
+                    class="refresh-button"
+                    id="refreshButton"
+                >
+                    ↻ Refresh
+                </button>
+
+            </div>
+
+        </header>
+
+
+        <!-- =================================================
+             KPI CARDS
+        ================================================== -->
+
+        <section class="kpi-grid">
+
+            <!-- TOTAL -->
+
+            <div class="kpi-card total-card clickable-card"
+            data-filter="all">
+
+                <div class="kpi-top">
+                    <span class="kpi-label">
+                        Total Shipments
+                    </span>
+
+                    <div class="kpi-icon">
+                        ◈
+                    </div>
+                </div>
+
+                <div
+                    class="kpi-value"
+                    id="totalShipments"
+                >
+                    --
+                </div>
+
+                <p class="kpi-description">
+                    All active shipment records
+                </p>
+
+            </div>
+
+
+            <!-- IN TRANSIT -->
+
+            <div class="kpi-card transit-card clickable-card
+            " data-filter="In Transit">
+
+                <div class="kpi-top">
+                    <span class="kpi-label">
+                        In Transit
+                    </span>
+
+                    <div class="kpi-icon">
+                        →
+                    </div>
+                </div>
+
+                <div
+                    class="kpi-value"
+                    id="inTransitShipments"
+                >
+                    --
+                </div>
+
+                <p class="kpi-description">
+                    Currently moving
+                </p>
+
+            </div>
+
+
+            <!-- DELIVERED -->
+
+            <div class="kpi-card delivered-card clickable-card
+            " data-filter="Delivered">
+
+                <div class="kpi-top">
+                    <span class="kpi-label">
+                        Delivered
+                    </span>
+
+                    <div class="kpi-icon">
+                        ✓
+                    </div>
+                </div>
+
+                <div
+                    class="kpi-value"
+                    id="deliveredShipments"
+                >
+                    --
+                </div>
+
+                <p class="kpi-description">
+                    Successfully delivered
+                </p>
+
+            </div>
+
+
+            <!-- DELAYED -->
+
+            <div class="kpi-card delayed-card clickable-card
+            " data-filter="Delayed">
+
+                <div class="kpi-top">
+                    <span class="kpi-label">
+                        Delayed
+                    </span>
+
+                    <div class="kpi-icon">
+                        !
+                    </div>
+                </div>
+
+                <div
+                    class="kpi-value"
+                    id="delayedShipments"
+                >
+                    --
+                </div>
+
+                <p class="kpi-description">
+                    Require attention
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             ANALYTICS ROW
+        ================================================== -->
+
+        <section
+            class="dashboard-grid"
+            id="analytics"
+        >
+
+            <!-- SHIPMENT STATUS -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h3>
+                            Shipment Status
+                        </h3>
+
+                        <p>
+                            Current distribution
+                        </p>
+                    </div>
+
+                    <span class="panel-badge">
+                        STATUS
+                    </span>
+
+                </div>
+
+                <div class="chart-container">
+
+                    <div class="donut-wrapper">
+
+                        <div class="donut-chart">
+
+                            <div class="donut-center">
+
+                                <strong id="chartTotal">
+                                    --
+                                </strong>
+
+                                <span>
+                                    Shipments
+                                </span>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div
+                        class="chart-legend"
+                        id="statusLegend"
+                    >
+                        <!-- JavaScript will populate -->
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- CARRIER PERFORMANCE -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h3>
+                            Carrier Performance
+                        </h3>
+
+                        <p>
+                            On-time performance
+                        </p>
+                    </div>
+
+                    <span class="panel-badge">
+                        CARRIER
+                    </span>
+
+                </div>
+
+                <div
+                    class="carrier-list"
+                    id="carrierPerformance"
+                >
+                    <!-- JavaScript will populate -->
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             ROUTE + FREIGHT
+        ================================================== -->
+
+        <section class="dashboard-grid">
+
+            <!-- ROUTE ANALYSIS -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h3>
+                            Origin → Destination
+                        </h3>
+
+                        <p>
+                            Route analysis
+                        </p>
+                    </div>
+
+                    <span class="panel-badge">
+                        ROUTES
+                    </span>
+
+                </div>
+
+                <div
+                    class="route-list"
+                    id="routeAnalysis"
+                >
+                    <!-- JavaScript will populate -->
+                </div>
+
+            </div>
+
+
+            <!-- FREIGHT COST -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <h3>
+                            Freight Cost Analysis
+                        </h3>
+
+                        <p>
+                            Cost by carrier
+                        </p>
+                    </div>
+
+                    <span class="panel-badge">
+                        COST
+                    </span>
+
+                </div>
+
+                <div
+                    class="cost-list"
+                    id="freightAnalysis"
+                >
+                    <!-- JavaScript will populate -->
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             SHIPMENT EXCEPTIONS
+        ================================================== -->
+
+        <section
+            class="panel exception-panel"
+            id="exceptions"
+        >
+
+            <div class="panel-header exception-header">
+
+                <div>
+                    <h3>
+                        Shipment Exception Table
+                    </h3>
+
+                    <p>
+                        Monitor delayed and operational shipments
+                    </p>
+                </div>
+
+                <div class="table-actions">
+
+                    <select id="statusFilter">
+
+                        <option value="all">
+                            All Status
+                        </option>
+
+                        <option value="Delayed">
+                            Delayed
+                        </option>
+
+                        <option value="Delivered">
+                            Delivered
+                        </option>
+
+                        <option value="In Transit">
+                            In Transit
+                        </option>
+
+                    </select>
+
+                    <select id="carrierFilter">
+
+                        <option value="all">
+                            All Carriers
+                        </option>
+
+                    </select>
+
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search shipment..."
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Shipment
+                            </th>
+
+                            <th>
+                                Carrier
+                            </th>
+
+                            <th>
+                                Route
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                ETA
+                            </th>
+
+                            <th>
+                                Delivered Date
+                            </th>
+
+                            <th>
+                                Delay
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="shipmentTableBody">
+
+                        <tr>
+
+                            <td
+                                colspan="7"
+                                class="loading-cell"
+                            >
+                                Loading shipment data...
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER -->
+
+        <footer>
+
+            <span>
+                Shipment Operations Control Tower
+            </span>
+
+            <span>
+                Powered by FastAPI
+            </span>
+
+        </footer>
+
+    </main>
+
+
+<!-- =====================================================
+     SHIPMENT DETAILS MODAL
+====================================================== -->
+
+<div
+    class="modal-overlay"
+    id="shipmentModal"
+>
+
+    <div class="shipment-modal">
+
+        <div class="modal-header">
+
+            <div>
+                <span class="modal-eyebrow">
+                    SHIPMENT DETAILS
+                </span>
+
+                <h2 id="modalShipmentId">
+                    Shipment
+                </h2>
+            </div>
+
+            <button
+                class="modal-close"
+                id="modalClose"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div
+            class="modal-status"
+            id="modalStatus"
+        >
+            --
+        </div>
+
+
+        <div class="detail-grid">
+
+            <div class="detail-item">
+                <span>Carrier</span>
+                <strong id="modalCarrier">--</strong>
+            </div>
+
+            <div class="detail-item">
+                <span>Route</span>
+                <strong id="modalRoute">--</strong>
+            </div>
+
+            <div class="detail-item">
+                <span>Ship Date</span>
+                <strong id="modalShipDate">--</strong>
+            </div>
+
+            <div class="detail-item">
+                <span>Expected Delivery</span>
+                <strong id="modalExpectedDate">--</strong>
+            </div>
+
+            <div class="detail-item">
+                <span>Delivered Date</span>
+                <strong id="modalDeliveredDate">--</strong>
+            </div>
+
+            <div class="detail-item">
+                <span>Delay</span>
+                <strong id="modalDelay">--</strong>
+            </div>
+
+            <div class="detail-item">
+                <span>Freight Cost</span>
+                <strong id="modalFreightCost">--</strong>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     JAVASCRIPT
+====================================================== -->
+
+<script src="app.js"></script>
+
+<!-- ============================================================
+     AI CHATBOT
+     ============================================================ -->
+
+<button
+    id="ai-chat-button"
+    class="ai-chat-button"
+    title="Open AI Assistant"
+>
+    <span class="ai-chat-icon">✦</span>
+</button>
+
+
+<div
+    id="ai-chat-window"
+    class="ai-chat-window"
+>
+
+    <!-- Header -->
+
+    <div class="ai-chat-header">
+
+        <div class="ai-chat-title">
+
+            <div class="ai-avatar">
+                ✦
+            </div>
+
+            <div>
+                <strong>Shipment AI</strong>
+                <span>Operations Assistant</span>
+            </div>
+
+        </div>
+
+        <button
+            id="ai-chat-close"
+            class="ai-chat-close"
+            title="Close"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <!-- Messages -->
+
+    <div
+        id="ai-chat-messages"
+        class="ai-chat-messages"
+    >
+
+        <div class="ai-message assistant">
+
+            <div class="message-avatar">
+                ✦
+            </div>
+
+            <div class="message-content">
+                Hello! I'm your Shipment Operations
+                Assistant. Ask me about shipments,
+                carriers, freight costs, delays,
+                routes, DQ checks, or the project.
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Input -->
+
+    <div class="ai-chat-input-area">
+
+        <textarea
+            id="ai-chat-input"
+            placeholder="Ask about your shipments..."
+            rows="1"
+        ></textarea>
+
+        <button
+            id="ai-chat-send"
+            title="Send message"
+        >
+            ➤
+        </button>
+
+    </div>
+
+</div>
+
+</body>
+</html>
