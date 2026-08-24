@@ -234,7 +234,7 @@ def get_shipments(
             expected_date = str(expected_date)
 
         delivered_date = record.get(
-            "Delivered Date"
+            "Delivered_Date"
         )
 
         if pd.isna(delivered_date):
