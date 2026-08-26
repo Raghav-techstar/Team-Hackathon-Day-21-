@@ -2287,3 +2287,30 @@ td:first-child::before {
         bottom: 18px;
     }
 }
+
+.exception-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.exception-pagination button {
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--panel-light);
+    color: var(--text);
+    cursor: pointer;
+}
+
+.exception-pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.exception-pagination span {
+    font-size: 14px;
+    color: var(--muted);
+}
