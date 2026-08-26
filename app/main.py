@@ -118,9 +118,31 @@ def get_summary(current_user: str = Depends(get_current_user),):
 
     total_shipments = len(clean_df)
 
+    normalized_status = (
+        clean_df["status"]
+        .fillna("")
+        .astype(str)
+        .str.lower()
+        .str.replace("_", " ", regex=False)
+        .str.replace("-", " ", regex=False)
+    )
+
+    in_transit_shipments = int(
+        (normalized_status == "in transit").sum()
+    )
+    delivered_shipments = int(
+        (normalized_status == "delivered").sum()
+    )
+    delayed_shipments = int(
+        (normalized_status == "delayed").sum()
+    )
+
     if total_shipments == 0:
         return {
             "total_shipments": 0,
+            "in_transit_shipments": 0,
+            "delivered_shipments": 0,
+            "delayed_shipments": 0,
             "on_time_rate": 0.0,
             "avg_freight_cost": 0.0,
         }
@@ -144,6 +166,9 @@ def get_summary(current_user: str = Depends(get_current_user),):
 
     return {
         "total_shipments": total_shipments,
+        "in_transit_shipments": in_transit_shipments,
+        "delivered_shipments": delivered_shipments,
+        "delayed_shipments": delayed_shipments,
         "on_time_rate": on_time_rate,
         "avg_freight_cost": avg_freight_cost,
     }
@@ -169,6 +194,19 @@ def get_shipments(
     status: str | None = Query(
         default=None,
         description="Filter by shipment status",
+    ),
+
+    limit: int = Query(
+        default=50,
+        ge=1,
+        le=100,
+        description="Maximum number of records to return",
+    ),
+
+    offset: int = Query(
+        default=0,
+        ge=0,
+        description="Number of records to skip",
     ),
 ):
     """Return cleaned shipment records."""
@@ -198,6 +236,8 @@ def get_shipments(
             .str.lower()
             == status.lower()
         ]
+
+    clean_df = clean_df.iloc[offset:offset + limit]
 
     records = []
 
