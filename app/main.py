@@ -196,6 +196,10 @@ def get_shipments(
         description="Filter by shipment status",
     ),
 
+    search: str | None = None,
+
+
+
     limit: int = Query(
         default=50,
         ge=1,
@@ -235,6 +239,19 @@ def get_shipments(
             .astype(str)
             .str.lower()
             == status.lower()
+        ]
+    if search:
+        search_value = search.strip().lower()
+
+        clean_df = clean_df[
+            clean_df["shipment_id"]
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .str.contains(
+                search_value,
+                regex=False,
+            )
         ]
 
     clean_df = clean_df.iloc[offset:offset + limit]

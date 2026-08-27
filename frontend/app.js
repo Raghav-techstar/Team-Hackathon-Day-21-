@@ -3,6 +3,8 @@
 // ============================================================
 
 let shipments = [];
+let searchTimeout = null;
+let shipmentSearch = "";
 let summaryData = null;
 let dqData = null;
 let exceptionPage = 0;
@@ -140,34 +142,100 @@ async function loadExceptions(page = 0) {
     const offset =
         page * EXCEPTION_PAGE_SIZE;
 
+    const status =
+        document.getElementById(
+            "statusFilter"
+        )?.value || "all";
+
+    const carrier =
+        document.getElementById(
+            "carrierFilter"
+        )?.value || "all";
+
+    const search =
+        document.getElementById(
+            "searchInput"
+        )?.value
+        .trim() || "";
+
     try {
+
+        const params =
+            new URLSearchParams();
+
+        params.set(
+            "limit",
+            EXCEPTION_PAGE_SIZE
+        );
+
+        params.set(
+            "offset",
+            offset
+        );
+
+        if (status !== "all") {
+
+            params.set(
+                "status",
+                status
+            );
+
+        }
+
+        if (carrier !== "all") {
+
+            params.set(
+                "carrier",
+                carrier
+            );
+
+        }
+
+        if (search) {
+
+            params.set(
+                "search",
+                search
+            );
+
+        }
 
         const response =
             await authenticatedFetch(
-                `${API_BASE}/status/shipments?status=Delayed&limit=${EXCEPTION_PAGE_SIZE}&offset=${offset}`
+                `${API_BASE}/status/shipments?${params.toString()}`
             );
 
         if (!response.ok) {
+
             throw new Error(
-                `Failed to load exceptions: ${response.status}`
+                `Failed to load shipments: ${response.status}`
             );
+
         }
 
-        const exceptions =
+        const shipmentsData =
             await response.json();
 
         exceptionPage = page;
 
-        renderExceptions(
-            exceptions
+        shipments =
+            shipmentsData;
+
+        updateShipmentTable(
+            shipmentsData
+        );
+
+        updateExceptionPagination(
+            shipmentsData.length
         );
 
     } catch (error) {
 
         console.error(
-            "Exception loading error:",
+            "Shipment loading error:",
             error
         );
+
     }
 }
 
@@ -1518,23 +1586,43 @@ function setupFilters() {
 
     statusFilter.addEventListener(
         "change",
-        applyFilters
+        () => {
+            exceptionPage = 0;
+            loadExceptions(0);
+        }
     );
 
 
     carrierFilter.addEventListener(
         "change",
-        applyFilters
+        () => {
+            exceptionPage = 0;
+            loadExceptions(0);
+        }
     );
 
 
     searchInput.addEventListener(
         "input",
-        applyFilters
+        () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(
+                () => {
+                    searchShipmentsFromAPI();
+                },
+                300
+            );
+        }
     );
-
 }
 
+async function searchShipmentsFromAPI() {
+
+    exceptionPage = 0;
+
+    await loadExceptions(0);
+
+}
 
 function applyFilters() {
 

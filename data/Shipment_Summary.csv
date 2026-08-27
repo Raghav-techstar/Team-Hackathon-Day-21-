@@ -1,4 +1,4 @@
 carrier,shipment_count,total_freight_cost,delayed_count,avg_delay_days
-FEDEX,3,1183.65,2,65.0
-DHL,3,820.01,2,4.7
-BLUEDART,3,902.41,1,25.7
+FEDEX,1441,361342.95,313,
+DHL,1469,376379.48,314,
+BLUEDART,1440,361374.7,330,
