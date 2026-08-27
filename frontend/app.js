@@ -5,6 +5,8 @@
 let shipments = [];
 let summaryData = null;
 let dqData = null;
+let exceptionPage = 0;
+const EXCEPTION_PAGE_SIZE = 50;
 
 const API_BASE = "";
 
@@ -46,6 +48,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setupAIChat();
 
+    setupNavigation();
+
 });
 
 
@@ -70,7 +74,7 @@ async function loadDashboard() {
     ),
 
     authenticatedFetch(
-        `${API_BASE}/status/shipments`
+        `${API_BASE}/status/shipments?limit=50&offset=0`
     ),
 
     authenticatedFetch(
@@ -114,6 +118,8 @@ async function loadDashboard() {
 
         renderDashboard();
 
+        await loadExceptions(0);
+
         updateLastUpdated();
 
 
@@ -127,6 +133,113 @@ async function loadDashboard() {
 
     }
 
+}
+
+async function loadExceptions(page = 0) {
+
+    const offset =
+        page * EXCEPTION_PAGE_SIZE;
+
+    try {
+
+        const response =
+            await authenticatedFetch(
+                `${API_BASE}/status/shipments?status=Delayed&limit=${EXCEPTION_PAGE_SIZE}&offset=${offset}`
+            );
+
+        if (!response.ok) {
+            throw new Error(
+                `Failed to load exceptions: ${response.status}`
+            );
+        }
+
+        const exceptions =
+            await response.json();
+
+        exceptionPage = page;
+
+        renderExceptions(
+            exceptions
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Exception loading error:",
+            error
+        );
+    }
+}
+
+function renderExceptions(exceptions) {
+
+    updateShipmentTable(
+        exceptions
+    );
+
+    updateExceptionPagination(
+        exceptions.length
+    );
+}
+
+function updateExceptionPagination(recordCount) {
+
+    const container =
+        document.getElementById(
+            "exceptionPagination"
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const previousDisabled =
+        exceptionPage === 0
+            ? "disabled"
+            : "";
+
+    const nextDisabled =
+        recordCount < EXCEPTION_PAGE_SIZE
+            ? "disabled"
+            : "";
+
+    container.innerHTML = `
+        <button
+            id="exceptionPrevious"
+            ${previousDisabled}
+        >
+            Previous
+        </button>
+
+        <span>
+            Page ${exceptionPage + 1}
+        </span>
+
+        <button
+            id="exceptionNext"
+            ${nextDisabled}
+        >
+            Next
+        </button>
+    `;
+
+    document
+        .getElementById("exceptionPrevious")
+        ?.addEventListener(
+            "click",
+            () => loadExceptions(
+                exceptionPage - 1
+            )
+        );
+
+    document
+        .getElementById("exceptionNext")
+        ?.addEventListener(
+            "click",
+            () => loadExceptions(
+                exceptionPage + 1
+            )
+        );
 }
 
 // ============================================================
@@ -170,7 +283,7 @@ async function refreshDashboardSilently() {
     ),
 
     authenticatedFetch(
-        `${API_BASE}/status/shipments`
+        `${API_BASE}/status/shipments?limit=50&offset=0`
     ),
 
     authenticatedFetch(
@@ -247,8 +360,6 @@ function renderDashboard() {
 
     updateFreightAnalysis();
 
-    updateShipmentTable();
-
     populateCarrierFilter();
 
     updateSystemStatus();
@@ -263,11 +374,11 @@ function renderDashboard() {
 function updateKPIs() {
 
     const total =
-        shipments.length;
+        summaryData?.total_shipments ?? shipments.length;
 
 
     const transit =
-        shipments.filter(
+        summaryData?.in_transit_shipments ?? shipments.filter(
             s =>
                 normalizeStatus(s.status)
                 === "in transit"
@@ -275,7 +386,7 @@ function updateKPIs() {
 
 
     const delivered =
-        shipments.filter(
+        summaryData?.delivered_shipments ?? shipments.filter(
             s =>
                 normalizeStatus(s.status)
                 === "delivered"
@@ -283,7 +394,7 @@ function updateKPIs() {
 
 
     const delayed =
-        shipments.filter(
+        summaryData?.delayed_shipments ?? shipments.filter(
             s =>
                 normalizeStatus(s.status)
                 === "delayed"
@@ -383,11 +494,11 @@ function setupKPICards() {
 function updateStatusChart() {
 
     const total =
-        shipments.length;
+        summaryData?.total_shipments ?? shipments.length;
 
 
     const delivered =
-        shipments.filter(
+        summaryData?.delivered_shipments ?? shipments.filter(
             s =>
                 normalizeStatus(s.status)
                 === "delivered"
@@ -395,7 +506,7 @@ function updateStatusChart() {
 
 
     const delayed =
-        shipments.filter(
+        summaryData?.delayed_shipments ?? shipments.filter(
             s =>
                 normalizeStatus(s.status)
                 === "delayed"
@@ -403,7 +514,7 @@ function updateStatusChart() {
 
 
     const transit =
-        shipments.filter(
+        summaryData?.in_transit_shipments ?? shipments.filter(
             s =>
                 normalizeStatus(s.status)
                 === "in transit"
@@ -533,7 +644,9 @@ function updateCarrierPerformance() {
     shipments.forEach(shipment => {
 
         const carrier =
-            shipment.carrier || "Unknown";
+            String(
+                shipment.carrier || "Unknown"
+            ).trim().toUpperCase();
 
 
         if (!carriers[carrier]) {
@@ -550,12 +663,13 @@ function updateCarrierPerformance() {
 
 
         const delay =
-            Number(
-                shipment.delay_days || 0
-            );
+            Number(shipment.delay_days);
 
 
-        if (delay <= 0) {
+        if (
+            Number.isNaN(delay) ||
+            delay <= 0
+        ) {
 
             carriers[carrier].onTime++;
 
@@ -568,6 +682,11 @@ function updateCarrierPerformance() {
         document.getElementById(
             "carrierPerformance"
         );
+
+
+    if (!container) {
+        return;
+    }
 
 
     container.innerHTML = "";
@@ -897,6 +1016,88 @@ function updateFreightAnalysis() {
         });
 
 }
+
+// ============================================================
+// SIDEBAR NAVIGATION
+// ============================================================
+
+function setupNavigation() {
+
+    const navItems =
+        document.querySelectorAll(".nav-item");
+
+    function updateActiveNav() {
+
+        let currentHash =
+            window.location.hash;
+
+        // Dashboard is the default page
+        if (
+            !currentHash ||
+            currentHash === "#"
+        ) {
+            currentHash = "#dashboard";
+        }
+
+        navItems.forEach(item => {
+
+            const href =
+                item.getAttribute("href");
+
+            item.classList.toggle(
+                "active",
+                href === currentHash ||
+                (
+                    currentHash === "#dashboard" &&
+                    href === "#"
+                )
+            );
+
+        });
+    }
+
+    // Update when a navigation item is clicked
+    navItems.forEach(item => {
+
+        item.addEventListener(
+            "click",
+            () => {
+
+                // Small delay allows the URL hash
+                // to update first.
+                setTimeout(
+                    updateActiveNav,
+                    0
+                );
+
+            }
+        );
+
+    });
+
+    // Also update if hash changes
+    window.addEventListener(
+        "hashchange",
+        updateActiveNav
+    );
+
+    // Set correct item when page loads
+    updateActiveNav();
+
+    if (window.location.hash === "#exceptions") {
+        loadExceptions(0);
+    }
+
+    window.addEventListener(
+        "hashchange",
+        () => {
+            if (window.location.hash === "#exceptions") {
+                loadExceptions(0);
+            }
+        }
+    );
+}
+
 
 // ============================================================
 // SHIPMENT TABLE

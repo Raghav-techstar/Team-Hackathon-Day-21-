@@ -4,6 +4,9 @@ from typing import Optional
 
 class SummaryResponse(BaseModel):
     total_shipments: int
+    in_transit_shipments: int
+    delivered_shipments: int
+    delayed_shipments: int
     on_time_rate: float
     avg_freight_cost: float
 

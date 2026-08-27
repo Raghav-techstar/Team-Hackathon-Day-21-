@@ -37,7 +37,7 @@
 
         <nav class="navigation">
 
-            <a href="#" class="nav-item active">
+            <a href="#dashboard" class="nav-item">
                 <span>▦</span>
                 Dashboard
             </a>
@@ -79,7 +79,7 @@
          MAIN CONTENT
     ====================================================== -->
 
-    <main class="main-content">
+    <main class="main-content" id="dashboard">
 
         <!-- HEADER -->
 
@@ -129,7 +129,10 @@
              KPI CARDS
         ================================================== -->
 
-        <section class="kpi-grid">
+        <section
+            class="kpi-grid"
+            id="shipments"
+        >
 
             <!-- TOTAL -->
 
@@ -433,7 +436,7 @@
 
                 <div>
                     <h3>
-                        Shipment Exception Table
+                        Shipment Details Table
                     </h3>
 
                     <p>
@@ -540,6 +543,11 @@
                 </table>
 
             </div>
+
+            <div
+                id="exceptionPagination"
+                class="exception-pagination"
+            ></div>
 
         </section>
 
